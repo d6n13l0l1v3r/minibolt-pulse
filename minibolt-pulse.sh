@@ -17,6 +17,7 @@ if [ $drivecount -gt 1 ]; then
 else
   ext_storage2nd=""
 fi
+SWD=$(pwd)
 
 # expected service names... common alternate values supported
 sn_bitcoin="bitcoind"
@@ -116,10 +117,10 @@ function print_last_modified() {
   echo "${path}: modified $(convert_secs_to_hhmmss ${seconds}) ago [$(convert_secs_to_min ${seconds}) mins]"
 }
 
-updatesstatusfile="${HOME}/.minibolt.updates.json"
-gitstatusfile="${HOME}/.minibolt.versions.json"
-lnd_infofile="${HOME}/.minibolt.lnd.data.json"
-cln_infofile="${HOME}/.minibolt.cln.data.json"
+updatesstatusfile="${SWD}/.minibolt.updates.json"
+gitstatusfile="${SWD}/.minibolt.versions.json"
+lnd_infofile="${SWD}/.minibolt.lnd.data.json"
+cln_infofile="${SWD}/.minibolt.cln.data.json"
 
 function last_updated() {
   print_last_modified $updatesstatusfile
