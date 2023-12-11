@@ -36,36 +36,52 @@ lncli_listfunds=$(${lncli} listfunds 2>&1)
 
 ln_walletbalance=0
 #check if len(outputs) == 0 --> empty wallet
+#amount_of_wallet_transactions=$(echo ${lncli_listfunds} | jq -r '.outputs | length')
+#if [ $amount_of_wallet_transactions -gt 0 ];then
+#ln_walletbalance=$(echo ${lncli_listfunds} | jq -r '.outputs[0].amount_msat| tonumber')
+#fi
+
 amount_of_wallet_transactions=$(echo ${lncli_listfunds} | jq -r '.outputs | length')
-if [ $amount_of_wallet_transactions -gt 0 ];then
-ln_walletbalance=$(echo ${lncli_listfunds} | jq -r '.outputs[0].amount_msat| tonumber')
-fi
+index=0
+
+while [ $index -lt $amount_of_wallet_transactions ]; do
+    # Access the amount_msat for the current transaction
+    current_amount_msat=$(echo ${lncli_listfunds} | jq -r ".outputs[$index].amount_msat | tonumber")
+
+    # Add the current amount to ln_walletbalance
+    ln_walletbalance=$((ln_walletbalance + current_amount_msat))
+
+    # Increment the index for the next iteration
+    index=$((index + 1))
+done
 
 ## Show channel balance
 ln_channelbalance=0
-#check if len(channels) == 0 --> no channels
+##check if len(channels) == 0 --> no channels
+#amount_of_channels=$(echo ${lncli_listfunds} | jq -r '.channels | length')
+#if [ $amount_of_channels -gt 0 ];then
+#ln_channelbalance=$(echo ${lncli_listfunds} | jq -r '[.channels[].our_amount_msat] | add')
+#fi
+
 amount_of_channels=$(echo ${lncli_listfunds} | jq -r '.channels | length')
-if [ $amount_of_channels -gt 0 ];then
-ln_channelbalance=$(echo ${lncli_listfunds} | jq -r '[.channels[].our_amount_msat] | add')
-fi
-printf "%0.s#" {1..66}
+index=0
 
-echo -ne '\r### Loading CLN data \r'
+while [ $index -lt $amount_of_channels ]; do
+    # Access the state for the current channel
+    current_channel_state=$(echo ${lncli_listfunds} | jq -r ".channels[$index].state")
 
-ln_channels_online=$(echo ${lncli_getinfo} | jq -r '.num_active_channels | tonumber') 2>/dev/null
-ln_channels_pending=$(echo ${lncli_getinfo} | jq -r '.num_pending_channels | tonumber') 2>/dev/null
-ln_channels_inactive=$(echo ${lncli_getinfo} | jq -r '.num_inactive_channels | tonumber') 2>/dev/null
-ln_channels_total=$((ln_channels_online + ln_channels_pending + ln_channels_inactive))
-node_id=$(echo ${lncli_getinfo} | jq -r '.id') 2>/dev/null
-node_address=$(echo ${lncli_getinfo} | jq -r '.address[0].address') 2>/dev/null
-node_port=$(echo ${lncli_getinfo} | jq -r '.address[0].port') 2>/dev/null
-ln_connect_addr="$node_id"@"$node_address":"$node_port" 2>/dev/null
-ln_connect_guidance="lightning-cli connect ${ln_connect_addr}"
-if [ -z "${node_addr##*onion*}" ]; then
-  ln_external="Using TOR Address"
-else
-  ln_external="Using Clearnet"
-fi
+    # Check if the state is not "ONCHAIN"
+    if [ "$current_channel_state" != "ONCHAIN" ]; then
+        # Access the our_amount_msat for the current channel
+        current_channel_amount_msat=$(echo ${lncli_listfunds} | jq -r ".channels[$index].our_amount_msat | tonumber")
+
+        # Add the current channel amount to ln_channelbalance
+        ln_channelbalance=$((ln_channelbalance + current_channel_amount_msat))
+    fi
+
+    # Increment the index for the next iteration
+    index=$((index + 1))
+done
 
 printf "%0.s#" {1..70}
 
