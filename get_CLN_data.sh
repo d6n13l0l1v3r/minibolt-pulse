@@ -4,7 +4,7 @@ color_green=$2
 color_red=$3
 ln_git_version=$4
 
-
+SWD=$(pwd)
 echo -ne '\r### Loading CLN data \r'
 
 ln_running=$(systemctl is-active lightningd 2>&1)
@@ -136,7 +136,7 @@ ln_dir="/data/lightningd"
 ln_channel_db_size=$(du -h ${ln_dir}/bitcoin/lightningd.sqlite3 | awk '{print $1}')
 
 # Write to JSON file
-ln_infofile="${HOME}/.minibolt.cln.data.json"
+ln_infofile="${SWD}/.minibolt.cln.data.json"
 ln_color=$(echo $ln_color | sed 's/\\/\\\\/g')
 ln_version_color=$(echo $ln_version_color | sed 's/\\/\\\\/g')
 alias_color=$(echo $alias_color| sed 's/\\/\\\\/g')

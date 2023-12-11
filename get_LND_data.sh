@@ -4,8 +4,8 @@ color_green=$2
 color_red=$3
 ln_git_version=$4
 
+SWD=$(pwd)
 echo -ne '\r### Loading LND data \r'
-
 
 ln_dir="/data/lnd"
 
@@ -165,7 +165,7 @@ printf "%0.s#" {1..76}
 echo -ne '\r### Saving \r'
 
 # Write to JSON file
-ln_infofile="${HOME}/.minibolt.lnd.data.json"
+ln_infofile="${SWD}/.minibolt.lnd.data.json"
 ln_color=$(echo $lnd_color | sed 's/\\/\\\\/g')
 lnversion_color=$(echo $lnversion_color | sed 's/\\/\\\\/g')
 alias_color=$(echo $alias_color| sed 's/\\/\\\\/g')
