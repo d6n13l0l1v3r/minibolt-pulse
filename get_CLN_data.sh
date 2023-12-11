@@ -83,6 +83,25 @@ while [ $index -lt $amount_of_channels ]; do
     index=$((index + 1))
 done
 
+printf "%0.s#" {1..66}
+
+echo -ne '\r### Loading CLN data \r'
+
+ln_channels_online=$(echo ${lncli_getinfo} | jq -r '.num_active_channels | tonumber') 2>/dev/null
+ln_channels_pending=$(echo ${lncli_getinfo} | jq -r '.num_pending_channels | tonumber') 2>/dev/null
+ln_channels_inactive=$(echo ${lncli_getinfo} | jq -r '.num_inactive_channels | tonumber') 2>/dev/null
+ln_channels_total=$((ln_channels_online + ln_channels_pending + ln_channels_inactive))
+node_id=$(echo ${lncli_getinfo} | jq -r '.id') 2>/dev/null
+node_address=$(echo ${lncli_getinfo} | jq -r '.address[0].address') 2>/dev/null
+node_port=$(echo ${lncli_getinfo} | jq -r '.address[0].port') 2>/dev/null
+ln_connect_addr="$node_id"@"$node_address":"$node_port" 2>/dev/null
+ln_connect_guidance="lightning-cli connect ${ln_connect_addr}"
+if [ -z "${node_addr##*onion*}" ]; then
+  ln_external="Using TOR Address"
+else
+  ln_external="Using Clearnet"
+fi
+
 printf "%0.s#" {1..70}
 
 ln_pendinglocal=0
