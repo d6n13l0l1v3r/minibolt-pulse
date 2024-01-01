@@ -10,6 +10,7 @@ set -u
 
 # set datadir
 bitcoin_dir="/data/bitcoin"
+elements_dir="/data/elements"
 # determine second drive info
 drivecount=$(lsblk --output MOUNTPOINT | grep / | grep -v /boot | sort | wc -l)
 if [ $drivecount -gt 1 ]; then
@@ -21,6 +22,7 @@ SWD=$(pwd)
 
 # expected service names... common alternate values supported
 sn_bitcoin="bitcoind"
+sn_elements="elementsd"
 sn_lnd="lnd"
 sn_cln="lightningd"                     # cln, lightningd
 sn_btcrpcexplorer="btcrpcexplorer"
@@ -48,6 +50,7 @@ color_magenta='\033[0;35m'
 color_white='\033[37;3m'
 # git repo urls latest version
 bitcoin_git_repo_url="https://api.github.com/repos/bitcoin/bitcoin/releases/latest"
+elements_git_repo_url="https://api.github.com/repos/ElementsProject/elements/releases/latest"
 electrs_git_repo_url="https://api.github.com/repos/romanz/electrs/releases/latest"
 btcrpcexplorer_git_repo_url="https://api.github.com/repos/janoside/btc-rpc-explorer/releases/latest"
 rtl_git_repo_url="https://api.github.com/repos/Ride-The-Lightning/RTL/releases/latest"
@@ -278,6 +281,7 @@ save_minibolt_versions() {
 {
   "githubversions": {
     "bitcoin": "${btcgit}",
+    "elements": "${lbtcgit}",
     "lnd": "${lndgit}",
     "cln": "${clngit}",
     "electrs": "${electrsgit}",
@@ -297,6 +301,7 @@ EOF
 
 load_minibolt_versions() {
   btcgit=$(cat ${gitstatusfile} | jq -r '.githubversions.bitcoin')
+  lbtcgit=$(cat ${gitstatusfile} | jq -r '.githubversions.elements')
   lndgit=$(cat ${gitstatusfile} | jq -r '.githubversions.lnd')
   clngit=$(cat ${gitstatusfile} | jq -r '.githubversions.cln')
   electrsgit=$(cat ${gitstatusfile} | jq -r '.githubversions.electrs')
@@ -313,6 +318,9 @@ load_minibolt_versions() {
 
 fetch_githubversion_bitcoin() {
   btcgit=$(curl -s --connect-timeout 5 ${bitcoin_git_repo_url} | jq -r '.tag_name | select(.!=null)')
+}
+fetch_githubversion_elements() {
+  lbtcgit=$(curl -s --connect-timeout 5 ${elements_git_repo_url} | jq -r '.tag_name | select(.!=null)')
 }
 fetch_githubversion_lightning() {
   ln_git_version=$(curl -s --connect-timeout 5 $ln_git_repo_url | jq -r '.tag_name | select(.!=null)')
@@ -367,6 +375,7 @@ fi
 if [ "${gitupdate}" -eq "1" ]; then
   # Calls to github
   fetch_githubversion_bitcoin
+  fetch_githubversion_elements
   fetch_githubversion_lnd
   fetch_githubversion_cln
   fetch_githubversion_electrs
@@ -390,6 +399,10 @@ fi
 resaveminibolt="0"
 if [ -z "$btcgit" ]; then
   fetch_githubversion_bitcoin
+  resaveminibolt="1"
+fi
+if [ -z "$lbtcgit" ]; then
+  fetch_githubversion_elements
   resaveminibolt="1"
 fi
 if [ -z "$lndgit" ]; then
@@ -547,6 +560,109 @@ else
   sync="Not synching"
   sync_color="${color_red}"
   sync_behind=""
+fi
+
+# Gather Elements Core data
+# ------------------------------------------------------------------------------
+printf "%0.s#" {1..50}
+echo -ne '\r### Loading Elements Core data \r'
+
+elementsd_running=$(systemctl is-active ${sn_elements} 2>&1)
+elementsd_color="${color_green}"
+if [ -z "${elementsd_running##*inactive*}" ]; then
+  elementsd_running="down"
+  elementsd_color="${color_red}"
+else
+  elementsd_running="up"
+fi
+lbtc_path=$(command -v elements-cli)
+if [ -n "${lbtc_path}" ]; then
+
+  # Reduce number of calls to bitcoin by doing once and caching
+  elementscli_getblockchaininfo=$(elements-cli -datadir=${elements_dir} getblockchaininfo 2>&1)
+  elementscli_getmempoolinfo=$(elements-cli -datadir=${elements_dir} getmempoolinfo 2>&1)
+  elementscli_getnetworkinfo=$(elements-cli -datadir=${elements_dir} getnetworkinfo 2>&1)
+  elementscli_getpeerinfo=$(elements-cli -datadir=${elements_dir} getpeerinfo 2>&1)
+
+  lchain="$(echo ${elementscli_getblockchaininfo} | jq -r '.chain')"
+  lbtc_title="Liquid"
+  lbtc_title="${lbtc_title} (${lchain}net)"
+
+  # create variable btcversion
+  lbtcpi=$(elements-cli -version |sed -n 's/^.*version //p')
+  case "${lbtcpi}" in
+    *"${lbtcgit}"*)
+      lbtcversion="$lbtcpi"
+      lbtcversion_color="${color_green}"
+      ;;
+    *)
+      lbtcversion="$lbtcpi"" Update!"
+      lbtcversion_color="${color_red}"
+      ;;
+  esac
+
+  # get sync status
+  lblock_chain="$(echo ${elementscli_getblockchaininfo} | jq -r '.headers')"
+  lblock_verified="$(echo ${elementscli_getblockchaininfo} | jq -r '.blocks')"
+  if [ -n "${lblock_chain}" ]; then
+    lblock_diff=$(("${lblock_chain}" - "${lblock_verified}"))
+  else
+    lblock_diff=999999
+  fi
+
+  lprogress="$(echo ${elementscli_getblockchaininfo} | jq -r '.verificationprogress')"
+  lsync_percentage=$(printf "%.2f%%" "$(echo "${lprogress}" | awk '{print 100 * $1}')")
+
+  if [ "${lblock_diff}" -eq 0 ]; then      # fully synced
+    lsync="OK"
+    sync_color="${color_green}"
+    lsync_behind="[#${lblock_chain}]"
+  elif [ "${lblock_diff}" -eq 1 ]; then    # fully synced
+    lsync="OK"
+    sync_color="${color_green}"
+    lsync_behind="-1 block"
+  elif [ "${lblock_diff}" -le 10 ]; then   # <= 10 blocks behind
+    lsync="Behind"
+    sync_color="${color_red}"
+    lsync_behind="-${lblock_diff} blocks"
+  else
+    sync="In progress"
+    sync_color="${color_red}"
+    sync_behind="${sync_percentage}"
+  fi
+
+  # get mem pool transactions
+  lmempool=$(echo ${elementscli_getmempoolinfo} | jq -r '.size')
+
+  # get connection info
+  lconnections=$(echo ${elementscli_getnetworkinfo} | jq -r '.connections')
+  linbound=$(echo ${elementscli_getpeerinfo} | jq '.[] | select(.inbound == true)' | jq -s 'length')
+  loutbound=$(echo ${elementscli_getpeerinfo} | jq '.[] | select(.inbound == false)' | jq -s 'length')
+
+  # create variable btcversion
+  lbtcpi=$(elements-cli -version |sed -n 's/^.*version //p')
+  case "${lbtcpi}" in
+    *"${lbtcgit}"*)
+      lbtcversion="$lbtcpi"
+      lbtcversion_color="${color_green}"
+      ;;
+    *)
+      lbtcversion="$lbtcpi"" Update!"
+      lbtcversion_color="${color_red}"
+      ;;
+  esac
+else
+  # elements-cli was not found
+  lbtc_title="Elements not active"
+  lbtcversion="Is Elements installed?"
+  lbtcversion_color="${color_red}"
+  lconnections="0"
+  linbound="0"
+  lmempool="0"
+  loutbound="0"
+  lsync="Not synching"
+  sync_color="${color_red}"
+  lsync_behind=""
 fi
 
 # Gather LN data based on preferred implementation
