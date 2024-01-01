@@ -586,12 +586,13 @@ if [ -n "${lbtc_path}" ]; then
 
   lchain="$(echo ${elementscli_getblockchaininfo} | jq -r '.chain')"
   lbtc_title="Liquid"
-  lbtc_title="${lbtc_title} (${lchain}net)"
+  lbtc_title="${lbtc_title} (${lchain})"
 
-  # create variable btcversion
+  # create variable lbtcversion
   lbtcpi=$(elements-cli -version |sed -n 's/^.*version //p')
+  lbtcpi="elements-${lbtcpi#v}"
   case "${lbtcpi}" in
-    *"${lbtcgit}"*)
+    *"${lbtcgit//-/v}"*)
       lbtcversion="$lbtcpi"
       lbtcversion_color="${color_green}"
       ;;
@@ -639,8 +640,9 @@ if [ -n "${lbtc_path}" ]; then
   linbound=$(echo ${elementscli_getpeerinfo} | jq '.[] | select(.inbound == true)' | jq -s 'length')
   loutbound=$(echo ${elementscli_getpeerinfo} | jq '.[] | select(.inbound == false)' | jq -s 'length')
 
-  # create variable btcversion
+  # create variable lbtcversion
   lbtcpi=$(elements-cli -version |sed -n 's/^.*version //p')
+  lbtcpi="elements-${lbtcpi#v}"
   case "${lbtcpi}" in
     *"${lbtcgit}"*)
       lbtcversion="$lbtcpi"
@@ -1120,15 +1122,15 @@ printf "${color_grey}cpu temp: ${color_temp}%-4s${color_grey}  tx: %-10s storage
 ${color_grey}up: %-10s  rx: %-10s 2nd drive: ${color_storage2nd}%-11s${color_grey}   available mem: ${color_ram}%sM${color_grey}
 ${color_grey}System updates avalible: ${color_updates}%-21s${color_grey}
 ${color_yellow}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${color_grey}
-${color_green}                          ${color_orange}"₿"${color_yellow}%-19s${bitcoind_color}%-4s${color_grey}   ${color_yellow}%-20s${lserver_color}%-4s${color_grey}
-${color_green}                          ${btcversion_color}%-26s ${lserver_version_color}%-24s${color_grey}
-${color_red}            ${color_grey}°${color_grey}             ${color_grey}Sync    ${sync_color}%-18s ${lserver_dataline_1}${color_grey}
-${color_red}          ${color_grey}／/${color_grey}             ${color_grey}Mempool %-18s ${lserver_dataline_2}${color_grey}
-${color_red}        ${color_grey}／ /${color_yellow}_____${color_yellow}         ${color_grey}Peers  %-22s  ${lserver_dataline_3}${color_grey}
-${color_red}      ${color_grey}／_____ ${color_yellow} ／${color_yellow}                                    ${lserver_dataline_4}${color_grey}
-${color_red}           ${color_yellow}/ ／${color_yellow}           ${color_yellow}%-20s${eserver_color}%-4s${color_grey}   ${lserver_dataline_5}${color_grey}
-${color_red}          ${color_yellow}/／${color_yellow}             ${eserver_version_color}%-26s ${lserver_dataline_6}${color_grey}
-${color_red}          ${color_yellow}°${color_yellow}                                          ${lserver_dataline_7}${color_grey}
+${color_green}${color_orange}"₿"${color_yellow}%-19s${bitcoind_color}%-4s${color_grey}   ${color_yellow}%-19s${bitcoind_color}%-4s${color_grey}    ${color_yellow}%-20s${lserver_color}%-4s${color_grey}
+${color_green}${btcversion_color}%-26s ${lbtcversion_color}%-26s ${lserver_version_color}%-24s${color_grey}
+${color_red}${color_grey}Sync    ${sync_color}%-18s ${color_grey}Sync    ${sync_color}%-18s ${lserver_dataline_1}${color_grey}
+${color_red}${color_grey}Mempool %-18s ${color_grey}Mempool %-18s ${lserver_dataline_2}${color_grey}
+${color_red}${color_grey}Peers  %-22s  ${color_grey}Peers  %-22s  ${lserver_dataline_3}${color_grey}
+${color_red}      ${color_grey}        ${color_yellow}  ${color_yellow}                                      ${lserver_dataline_4}${color_grey}
+${color_red}           ${color_yellow}   ${color_yellow}             ${color_yellow}%-20s${eserver_color}%-4s${color_grey}   ${lserver_dataline_5}${color_grey}
+${color_red}          ${color_yellow}  ${color_yellow}               ${eserver_version_color}%-26s ${lserver_dataline_6}${color_grey}
+${color_red}          ${color_yellow} ${color_yellow}                                          ${lserver_dataline_7}${color_grey}
 
 ${color_red} ${color_yellow}%-18s${color_grey}${bserver_color}%-6s${color_grey} ${color_yellow}%-18s${lwserver_color}%-8s${color_grey} ${color_yellow}%-18s${color_grey}${mserver_color}%-8s${color_grey}
 ${color_red} ${bserver_version_color}%-24s${color_grey} ${lwserver_version_color}%-24s${color_grey}   ${mserver_version_color}%-24s${color_grey}
@@ -1147,11 +1149,11 @@ ${color_grey}%s
 "${temp}" "${network_tx}" "${storage} free" "${load}" \
 "${uptime}" "${network_rx}" "${storage2nd}" "${ram_avail}" \
 "${updates}" \
-"${btc_title}" "${bitcoind_running}" "${lserver_label}" "${lserver_running}" \
-"${btcversion}" "${lserver_version}" \
-"${sync} ${sync_behind}" \
-"${mempool} tx" \
-"${connections} (📥${inbound} /📤${outbound})"  \
+"${btc_title}" "${bitcoind_running}" "${lbtc_title}" "${elementsd_running}" "${lserver_label}" "${lserver_running}" \
+"${btcversion}" "v${lbtcversion#elements-}" "${lserver_version}" \
+"${sync} ${sync_behind}" "${lsync} ${lsync_behind}" \
+"${mempool} tx" "${lmempool} tx" \
+"${connections} (📥${inbound} /📤${outbound})" "${lconnections} (📥${linbound} /📤${loutbound})"  \
 "${eserver_label}" "${eserver_running}" \
 "${eserver_version}" \
 "${bserver_label}" "${bserver_running}"  "${lwserver_label}" "${lwserver_running}" "${mserver_label}" "${mserver_running}" \
